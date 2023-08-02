@@ -1,0 +1,225 @@
+---
+title: "pclimte"
+output: pdf_document
+date: "2023-06-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("tidyverse")
+burned_area=read.csv("modis_burned_area__ha.csv")
+tree_loss=read.csv("treecover_loss_from_fires_by_region.csv")
+
+colnames(burned_area)[2]="year"
+colnames(tree_loss)[2]="year"
+burned=burned_area %>%
+ group_by(iso,year)%>%
+ summarise(total_burned = sum(burned_area__ha))
+data=full_join(burned,tree_loss,by=c("iso","year"))
+```
+
+
+# burned area
+
+```{r}
+nrow(data)
+data=na.omit(data)
+nrow(data)
+```
+
+```{r}
+burned[order(burned$total_burned,decreasing=TRUE),]
+new=burned%>%group_by(iso)%>%
+   summarise_at(vars(total_burned), list(name = mean))
+head(new)
+new[order(new$name,decreasing=TRUE),]
+```
+
+```{r}
+library(ggplot2)
+#boxplot(data$total_burned~data$iso)
+ggplot(data, aes(x=iso, y=total_burned)) +
+  geom_boxplot()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=5.5))
+burned[burned$total_burned==max(burned$total_burned),]$iso
+#max(burned$total_burned)
+```
+#burned in ssd most severe
+```{r}
+ssd = burned[burned$iso=="SSD",]
+plot(ssd$year,ssd$total_burned,type="l",pch=19)
+```
+#caf is also severe
+```{r}
+caf = burned[burned$iso=="CAF",]
+plot(caf$year,caf$total_burned,type="l",pch=19)
+```
+#top(mean) 3 countries 
+
+```{r}
+#eth 3rd
+eth=burned[burned$iso=="ETH",]
+```
+
+```{r}
+plot(2012:2022, seq(from=150000,to=4500000,length.out=11),pch=" ",xlab="year",
+     ylab="burned area")
+points(ssd$year,ssd$total_burned,type="l",col="red")
+points(caf$year,caf$total_burned,type="l",col="blue")
+points(eth$year,eth$total_burned,type="l",col="green")
+legend("topright", legend = c("SSD", "CAF","ETH"),
+       col = c("red","blue","green"), lty = 19)
+```
+
+
+```{r}
+#write_csv(data, "burnedarea_treecoverloss.csv")
+```
+
+# tree loss
+```{r}
+#tree_loss
+tree_loss[tree_loss$umd_tree_cover_loss_from_fires__ha==max(tree_loss$umd_tree_cover_loss_from_fires__ha),]
+new=tree_loss%>%group_by(iso)%>%
+   summarise_at(vars(umd_tree_cover_loss_from_fires__ha), list(name = mean))
+head(new[order(new$name,decreasing=TRUE),])
+```
+
+```{r}
+ggplot(tree_loss, aes(x=iso, y=umd_tree_cover_loss_from_fires__ha)) +
+  geom_boxplot()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=5.5))
+```
+```{r}
+rus=tree_loss[tree_loss$iso=="RUS",]
+can=tree_loss[tree_loss$iso=="CAN",]
+usa=tree_loss[tree_loss$iso=="USA",]
+plot(2001:2022, seq(from=100000,to=5100000,length.out=22),pch=" ",xlab="year",
+     ylab="umd_tree_cover_loss_from_fires__ha")
+points(rus$year,rus$umd_tree_cover_loss_from_fires__ha,type="l",col="red")
+points(can$year,can$umd_tree_cover_loss_from_fires__ha,type="l",col="blue")
+points(usa$year,usa$umd_tree_cover_loss_from_fires__ha,type="l",col="green")
+legend("topright", legend = c("RUS", "CAN","USA"),
+       col = c("red","blue","green"), lty = 19)
+```
+
+# temperature change
+
+```{r}
+temp = read.csv("Annual_Surface_Temperature_Change.csv")
+library(tidyr)
+temp_reshaped <- pivot_longer(temp, cols = -c("iso"), 
+                            names_to = "year",
+                            values_to = "temperature_change")
+temp_reshaped$year<-gsub("X","",as.character(temp_reshaped$year))
+temp_reshaped$year=as.numeric(temp_reshaped$year)
+
+```
+
+```{r}
+head(temp_reshaped)
+ggplot(temp_reshaped, aes(x=iso, y=temperature_change)) +
+  geom_boxplot()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=5.5))
+```
+
+
+```{r}
+data=full_join(data,temp_reshaped,by=c("iso","year"))
+```
+
+
+# co2 emissions
+
+```{r}
+co2=read.csv("owid-co2-data.csv")
+head(co2)
+```
+
+
+# graphs for co2 emission for each country
+```{r}
+ggplot(co2[co2$year>2000,], aes(x=iso, y=co2)) +
+  geom_boxplot()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=5.5))
+```
+
+```{r}
+new=co2[co2$year>2000,]%>%group_by(iso)%>%
+   summarise_at(vars(co2), list(name = mean))
+head(new[order(new$name,decreasing=TRUE),])
+```
+
+```{r}
+emit=co2[co2$year>2000,]
+
+chn=emit[emit$iso=="CHN",]
+usa=emit[emit$iso=="USA",]
+ind=emit[emit$iso=="IND",]
+rus=emit[emit$iso=="RUS",]
+plot(2001:2022, seq(from=800,to=15000,length.out=22),pch=" ",xlab="year",
+     ylab="annual average co2 emissions ")
+points(rus$year,rus$co2,type="l",col="yellow")
+points(chn$year,chn$co2,type="l",col="blue")
+points(usa$year,usa$co2,type="l",col="green")
+points(ind$year,ind$co2,type="l",col="red")
+legend("topright", legend = c("CHN","USA","IND", "RUS"),
+       col = c("blue","green","red","yellow"), lty = 19)
+```
+
+
+
+```{r}
+data=left_join(data,co2,by=c("iso","year"))
+```
+
+
+# percipitation
+
+```{r}
+rain= read.csv("avg_percipitation_mm_per_year.csv")
+rain = pivot_longer(temp, cols = -c("iso"), 
+                            names_to = "year",
+                            values_to = "percipitation_mm")
+rain$year<-gsub("X","",as.character(rain$year))
+rain$year=as.numeric(rain$year)
+```
+
+```{r}
+ggplot(rain[rain$year>2000,], aes(x=iso, y=percipitation_mm)) +
+  geom_boxplot()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size=5.5))
+```
+
+```{r}
+new=rain[rain$year>2000,]%>%group_by(iso)%>%
+   summarise_at(vars(percipitation_mm), list(name = mean))
+head(new[order(new$name,decreasing=TRUE),])
+```
+
+```{r}
+data=left_join(data,rain,by=c("iso","year"))
+```
+
+```{r}
+data=data[with(data,order(iso, year)),]
+```
+
+
+```{r}
+write_csv(data, "merged_dataset.csv")
+```
+
+
+```{r}
+head(data)
+library(psych)
+new=data[data$year>2001,]
+new=na.omit(new)
+corPlot(new[c("total_burned","umd_tree_cover_loss__ha","umd_tree_cover_loss_from_fires__ha","temperature_change","co2","percipitation_mm")], cex = 1.2,MAR=TRUE,xsrt=45, show.legend=TRUE)
+pairs(new[c("total_burned","umd_tree_cover_loss__ha","umd_tree_cover_loss_from_fires__ha","temperature_change",
+              "co2","percipitation_mm")])
+```
+
+```{r}
+hist(new$total_burned)
+```
+
